@@ -136,3 +136,6 @@ def list_content(lines):
         if 0 in c:
             content.discard(c)
     return content
+
+def get_line_number(l):
+    return int(l[slices['line']])
