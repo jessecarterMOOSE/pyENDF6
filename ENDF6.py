@@ -136,3 +136,31 @@ def list_content(lines):
         if 0 in c:
             content.discard(c)
     return content
+
+
+if __name__ == "__main__":
+    # run an example
+    import matplotlib.pyplot as plt
+    import os.path
+
+    # open library file and read it in
+    f = open(os.path.join('library_files', '40090'))
+    lines = f.readlines()
+    f.close()
+
+    # get total reaction cross section
+    x, y = read_table(find_section(lines, MF=3, MT=5))
+    x = x*1.0e-6  # convert energy to MeV
+
+    # plot it
+    fig, ax = plt.subplots()
+
+    ax.plot(x, y, 'o-', label='reaction cross section')
+    ax.set_xlabel('energy (MeV)')
+    ax.set_ylabel('cross section (barns)')
+    ax.set_xlim([0, 10])
+    ax.set_yscale('symlog', linthreshy=1e-10)
+    ax.legend(loc='upper left', fontsize=8)
+
+    fig.tight_layout()
+    plt.show()
