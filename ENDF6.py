@@ -138,6 +138,66 @@ def list_content(lines):
     return content
 
 
+def get_num_subsections(lines):
+    """Return number of subsections within the file, taken as the 5th column of the first line"""
+    values = read_line(lines[0])
+    return int(values[4])
+
+
+def parse_header(line):
+    """Return header information - generally integers except for second column which may be float"""
+    a, b, c, d, e, f = read_line(line)
+    return int(a), b, int(c), int(d), int(e), int(f)
+
+
+def find_yields(lines):
+    """Find available reaction products and return a dict with the product ZAP ID as key"""
+
+    # yield data is in MF6/MT5
+    lines = find_section(lines, MF=6, MT=5)
+
+    # return whole subsection if thre are no subsections
+    if get_num_subsections(lines) == 0:
+        return lines
+
+    # if multiple subsections exist ,make a dict with the product as key
+    yield_dict = {}
+
+    # parse the section into subsections
+    # unfortunately, there are no good delimiters that tell when a subsections starts and stops, so we will go through
+    # the section line by line and use the number of data points in each subsection as a guide
+    line_num = 1  # keeping track of the FILE line number, not list index, so we will always need to subtract 1
+
+    # we are using the read_table function but it assumes 3 header rows for the section, but the yield subsection
+    # only has 2 header lines, so we will save the first line and tack it top of each subsections
+    head_line = lines[line_num-1]
+
+    line_num += 1  # move up
+
+    # start the loop
+    while line_num <= len(lines):
+        ZAP, AWR, LIP, LAW, NR, NP = parse_header(lines[line_num-1])  # parse TAB1 line
+
+        # check values
+        if NR > 1:
+            print("error: can not yet handle multiple interpolation ranges")
+            quit()
+
+        if LAW > 0:
+            print("error: can only handle LAW=0 (no angular data) for now, file had LAW:", LAW)
+            quit()
+
+        # first subsection will be the yield data, so get the lines and save in the dict
+        data_lines = int(np.ceil(NP/3.0))  # 3 data pairs per line
+        yield_section = lines[line_num-1:line_num-1 + data_lines+2]  # include 2 TAB1 lines
+        key = str(ZAP) + '-' + str(LIP)  # dict key in the form of "ZAP-LIP", e.g. "41091-1" for Nb-91m
+        yield_dict[key] = [head_line] + yield_section  # add section to dict with header
+
+        line_num += data_lines + 2  # move up past yield data
+
+    return yield_dict
+
+
 if __name__ == "__main__":
     # run an example
     import matplotlib.pyplot as plt
@@ -148,19 +208,35 @@ if __name__ == "__main__":
     lines = f.readlines()
     f.close()
 
+    product = '41091-1'
+
+    # get ready to plot it
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+
     # get total reaction cross section
-    x, y = read_table(find_section(lines, MF=3, MT=5))
-    x = x*1.0e-6  # convert energy to MeV
+    x1, y1 = read_table(find_section(lines, MF=3, MT=5))
+    x1 = x1*1.0e-6  # convert energy to MeV
 
-    # plot it
-    fig, ax = plt.subplots()
+    # get yield section
+    yield_dict = find_yields(lines)
+    print("found these products:")
+    for i, key in enumerate(sorted(yield_dict.keys())):
+        print(i+1, key)
+    # check if yield of product exists before trying to evaluate it
+    if yield_dict.get(product):
+        x2, y2 = read_table(yield_dict.get(product))
+        x2 = x2*1.0e-6  # convert to MeV
+        ax2.plot(x2, y2, 'o--', label='yield data for ' + product)
 
-    ax.plot(x, y, 'o-', label='reaction cross section')
-    ax.set_xlabel('energy (MeV)')
-    ax.set_ylabel('cross section (barns)')
-    ax.set_xlim([0, 10])
-    ax.set_yscale('symlog', linthreshy=1e-10)
-    ax.legend(loc='upper left', fontsize=8)
+    ax1.plot(x1, y1, 'o-', label='reaction cross section')
+    ax1.set_xlabel('energy (MeV)')
+    ax1.set_ylabel('cross section (barns)')
+    ax2.set_ylabel('yield fraction')
+    ax1.set_xlim([0, 10])
+    ax1.set_yscale('symlog', linthreshy=1e-10)
+    ax2.set_yscale('symlog', linthreshy=1e-4)
+    ax1.legend(loc='upper left', fontsize=8)
 
     fig.tight_layout()
     plt.show()
