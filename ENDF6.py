@@ -190,7 +190,10 @@ def find_yields(lines):
         # first subsection will be the yield data, so get the lines and save in the dict
         data_lines = int(np.ceil(NP/3.0))  # 3 data pairs per line
         yield_section = lines[line_num-1:line_num-1 + data_lines+2]  # include 2 TAB1 lines
-        key = str(ZAP) + '-' + str(LIP)  # dict key in the form of "ZAP-LIP", e.g. "41091-1" for Nb-91m
+        # dict key in the form of "ZAP(m)", e.g. "41091m" for Nb-91m, "41091" fo Nb-91 (ground state)
+        key = str(ZAP)
+        if LIP > 0:
+            key = key + 'm'
         yield_dict[key] = [head_line] + yield_section  # add section to dict with header
 
         line_num += data_lines + 2  # move up past yield data
@@ -208,7 +211,7 @@ if __name__ == "__main__":
     lines = f.readlines()
     f.close()
 
-    product = '41091-1'
+    product = '41091m'
 
     # get ready to plot it
     fig, ax1 = plt.subplots()
@@ -229,7 +232,7 @@ if __name__ == "__main__":
         x2 = x2*1.0e-6  # convert to MeV
         ax2.plot(x2, y2, 'o--', label='yield data for ' + product)
 
-    ax1.plot(x1, y1, 'o-', label='reaction cross section')
+    ax1.plot(x1, y1, 'o-', label='total reaction cross section')
     ax1.set_xlabel('energy (MeV)')
     ax1.set_ylabel('cross section (barns)')
     ax2.set_ylabel('yield fraction')
