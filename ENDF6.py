@@ -207,9 +207,8 @@ if __name__ == "__main__":
     import os.path
 
     # open library file and read it in
-    f = open(os.path.join('library_files', '40090'))
-    lines = f.readlines()
-    f.close()
+    with open(os.path.join('library_files', '40090')) as f:
+        lines = f.readlines()
 
     product = '41091m'
 
