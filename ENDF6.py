@@ -190,10 +190,10 @@ def find_yields(lines):
         # first subsection will be the yield data, so get the lines and save in the dict
         data_lines = int(np.ceil(NP/3.0))  # 3 data pairs per line
         yield_section = lines[line_num-1:line_num-1 + data_lines+2]  # include 2 TAB1 lines
-        # dict key in the form of "ZAP(m)", e.g. "41091m" for Nb-91m, "41091" fo Nb-91 (ground state)
-        key = str(ZAP)
+        # dict key is the ZAP plus 400 for metastable
+        key = ZAP
         if LIP > 0:
-            key = key + 'm'
+            key += 400
         yield_dict[key] = [head_line] + yield_section  # add section to dict with header
 
         line_num += data_lines + 2  # move up past yield data
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     with open(os.path.join('library_files', '40090')) as f:
         lines = f.readlines()
 
-    product = '41091m'
+    product = 41491  # Nb-91m, the ZAP is 41091, then add 400 for metastable
 
     # get ready to plot it
     fig, ax1 = plt.subplots()
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     if yield_dict.get(product):
         x2, y2 = read_table(yield_dict.get(product))
         x2 = x2*1.0e-6  # convert to MeV
-        ax2.plot(x2, y2, 'o--', label='yield data for ' + product)
+        ax2.plot(x2, y2, 'o--', label='yield data for ' + str(product))
 
     ax1.plot(x1, y1, 'o-', label='total reaction cross section')
     ax1.set_xlabel('energy (MeV)')
