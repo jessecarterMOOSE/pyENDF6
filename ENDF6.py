@@ -150,7 +150,7 @@ def parse_header(line):
     return int(a), b, int(c), int(d), int(e), int(f)
 
 
-def find_yields(lines):
+def yield_lines(lines):
     """Find available reaction products and return a dict with the product ZAP ID as key"""
 
     # yield data is in MF6/MT5
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     x1 = x1*1.0e-6  # convert energy to MeV
 
     # get yield section
-    yield_dict = find_yields(lines)
+    yield_dict = yield_lines(lines)
     print("found these products:")
     for i, key in enumerate(sorted(yield_dict.keys())):
         print(i+1, key)
