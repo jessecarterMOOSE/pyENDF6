@@ -36,7 +36,7 @@ MT labels an ENDF section, usually used to hold different reactions, e.g.
 """
 
 import numpy as np
-
+import sys
 
 slices = {
     'MAT': slice(66, 70),
@@ -180,12 +180,12 @@ def yield_lines(lines):
 
         # check values
         if NR > 1:
-            print("error: can not yet handle multiple interpolation ranges")
-            quit()
+            print("error: can not yet handle multiple interpolation ranges, NR:", NR)
+            sys.exit()
 
-        if LAW > 0:
-            print("error: can only handle LAW=0 (no angular data) for now, file had LAW:", LAW)
-            quit()
+        if LAW > 1:
+            print("error: can only handle LAW=0 and LAW=1 for now, file had LAW:", LAW)
+            sys.exit()
 
         # first subsection will be the yield data, so get the lines and save in the dict
         data_lines = int(np.ceil(NP/3.0))  # 3 data pairs per line
@@ -198,6 +198,21 @@ def yield_lines(lines):
 
         line_num += data_lines + 2  # move up past yield data
 
+        # if there is energy-angle information, just skip it
+        if LAW == 1:
+            # find out how many energy subsections we need to skip
+            num_energies = parse_header(lines[line_num-1])[-1]
+
+            # move up to first energy/angle section
+            line_num += 2
+
+            # read and skip each energy section
+            for i in range(num_energies):
+                # find how many data points there are and how many lines to skip (up to 6 per line)
+                num_points = parse_header(lines[line_num-1])[-2]
+                lines_to_skip = int(np.ceil(num_points/6.0))
+                line_num += lines_to_skip + 1  # data plus header
+
     return yield_dict
 
 
@@ -206,39 +221,46 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import os.path
 
-    # open library file and read it in
-    with open(os.path.join('library_files', '40090')) as f:
-        lines = f.readlines()
+    # look at two different libraries
+    for file in ['40090', 'Zr090-p.tendl']:
 
-    product = 41491  # Nb-91m, the ZAP is 41091, then add 400 for metastable
+        # open library file and read it in
+        with open(os.path.join('library_files', file)) as f:
+            lines = f.readlines()
 
-    # get ready to plot it
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
+        product = 41491  # Nb-91m, the ZAP is 41091, then add 400 for metastable
 
-    # get total reaction cross section
-    x1, y1 = read_table(find_section(lines, MF=3, MT=5))
-    x1 = x1*1.0e-6  # convert energy to MeV
+        # get ready to plot it
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
 
-    # get yield section
-    yield_dict = yield_lines(lines)
-    print("found these products:")
-    for i, key in enumerate(sorted(yield_dict.keys())):
-        print(i+1, key)
-    # check if yield of product exists before trying to evaluate it
-    if yield_dict.get(product):
-        x2, y2 = read_table(yield_dict.get(product))
-        x2 = x2*1.0e-6  # convert to MeV
-        ax2.plot(x2, y2, 'o--', label='yield data for ' + str(product))
+        # get total reaction cross section
+        x1, y1 = read_table(find_section(lines, MF=3, MT=5))
+        x1 = x1*1.0e-6  # convert energy to MeV
 
-    ax1.plot(x1, y1, 'o-', label='total reaction cross section')
-    ax1.set_xlabel('energy (MeV)')
-    ax1.set_ylabel('cross section (barns)')
-    ax2.set_ylabel('yield fraction')
-    ax1.set_xlim([0, 10])
-    ax1.set_yscale('symlog', linthreshy=1e-10)
-    ax2.set_yscale('symlog', linthreshy=1e-4)
-    ax1.legend(loc='upper left', fontsize=8)
+        # get yield section
+        yield_dict = yield_lines(lines)
+        print("found these products:")
+        for i, key in enumerate(sorted(yield_dict.keys())):
+            print(i+1, key)
+        # check if yield of product exists before trying to evaluate it
+        if yield_dict.get(product):
+            x2, y2 = read_table(yield_dict.get(product))
+            x2 = x2*1.0e-6  # convert to MeV
+            ax2.plot(x2, y2, 'o--', label='yield data for ' + str(product))
 
-    fig.tight_layout()
+        ax1.plot(x1, y1, 'o-', label='total reaction cross section for Zr90->Nb91m')
+        ax1.set_xlabel('energy (MeV)')
+        ax1.set_ylabel('cross section (barns)')
+        ax2.set_ylabel('yield fraction')
+        ax1.set_xlim([0, 10])
+        ax1.set_yscale('symlog', linthreshy=1e-10)
+        ax2.set_yscale('symlog', linthreshy=1e-4)
+        ax1.legend(loc='lower right', fontsize=8)
+        if file == '40090':
+            ax1.set_title('PADF library')
+        elif file == 'Zr090-p.tendl':
+            ax1.set_title('TENDL-2015 library')
+
+        fig.tight_layout()
     plt.show()
